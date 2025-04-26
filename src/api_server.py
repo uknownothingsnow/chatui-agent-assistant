@@ -20,6 +20,8 @@ except ImportError as e:
     print("Ensure you are running this from the project root directory or sys.path is correctly configured.")
     sys.exit(1)
 
+# --- Agent ID to Name mapping removed, no longer needed with the new approach --- 
+
 # --- Define Request Body Model ---
 class QueryRequest(BaseModel):
     query: str
@@ -32,27 +34,61 @@ app = FastAPI(
 
 # Change GET to POST and accept request body
 @app.post("/ask", tags=["Agent Interaction"])
-async def ask_agent(request: QueryRequest):
+async def ask_agent(request: QueryRequest): # Accept QueryRequest model as body
     """
     向柠檬叔个人助手团队发送查询并获取响应 (使用 POST 请求体)。
     
     - **Request Body**:
         - `query` (str): 你想问的问题或指令。
     """
-    query = request.query
+    query = request.query # Extract query from the request body object
     if not query:
+        # Although Pydantic might handle empty validation, explicit check is fine
         return {"error": "Query in request body cannot be empty."}
     
     print(f"Received query via POST: {query}")
+    handling_agent_name = "Unknown / Team Orchestrator" # Default value
+    response_content = ""
     try:
         # IMPORTANT: Use stream=False for API calls to get the full response content
         response = lemonhall_assistant.run(query, stream=False)
-        print(f"Agent response content: {response.content}")
-        return {"response": response.content}
+        
+        # --- Log and extract handling agent info from tool calls in messages --- 
+        response_content = response.content
+        
+        # Search messages for the forward_task_to_member tool call
+        if hasattr(response, 'messages') and isinstance(response.messages, list):
+            found_forward = False
+            for msg in reversed(response.messages): # Search backwards, likely faster
+                if msg.role == 'tool' and msg.tool_name == 'forward_task_to_member':
+                    if hasattr(msg, 'tool_args') and isinstance(msg.tool_args, dict):
+                        # The 'member_id' in tool_args seems to hold the agent NAME
+                        agent_name_from_tool = msg.tool_args.get('member_id') 
+                        if agent_name_from_tool:
+                            handling_agent_name = agent_name_from_tool
+                            found_forward = True
+                            break # Found the most recent forward
+            if not found_forward:
+                 print("Could not find 'forward_task_to_member' tool call in messages to determine handler.")
+        else:
+            print("'messages' attribute not found or not a list in the response object.")
+            
+        print(f"Query handled by: {handling_agent_name}")
+        print(f"Agent response content: {response_content}")
+        # --- End of logging --- 
+        
+        return {
+            "handling_agent": handling_agent_name,
+            "response": response_content
+        }
     except Exception as e:
         print(f"Error during agent run: {e}")
         # In a real app, you might want more specific error handling and status codes
-        return {"error": f"An error occurred: {e}"}
+        return {
+            "handling_agent": handling_agent_name, # Still return name even on error if known before fail
+            "error": f"An error occurred: {e}",
+            "response": response_content # Include any partial content if available before error
+        }
 
 # Add a simple root endpoint for health check or info
 @app.get("/", tags=["General"])
