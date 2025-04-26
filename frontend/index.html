@@ -43,15 +43,21 @@
         const { useState, useCallback } = React;
         // Correctly access default and named exports from the ChatUI global
         const Chat = ChatUI.default; 
-        // Destructure Typing component as well
-        const { Bubble, useMessages, Typing } = ChatUI;
+        // Destructure Typing and Avatar components as well
+        const { Bubble, useMessages, Typing, Avatar } = ChatUI;
 
         const App = () => {
             // Check if components/hooks are defined
-            if (!Chat || !useMessages || !Typing || !Bubble) {
-                console.error("ChatUI components or hooks are undefined.", { Chat, useMessages, Typing, Bubble });
+            if (!Chat || !useMessages || !Typing || !Bubble || !Avatar) {
+                console.error("ChatUI components or hooks are undefined.", { Chat, useMessages, Typing, Bubble, Avatar });
                 return <div>Error: ChatUI components not loaded correctly.</div>;
             }
+
+            // --- Define Avatar URLs --- 
+            // Point to the newly created SVG files within the frontend/assets directory
+            const userAvatar = "assets/avatars/user.svg"; 
+            const assistantAvatar = "assets/avatars/assistant.svg"; 
+            // --- End Avatar URLs --- 
 
             const { messages, appendMsg } = useMessages([]);
             // Add state to track typing indicator visibility
@@ -62,11 +68,12 @@
             // 发送消息的处理函数
             const handleSend = useCallback(async (type, val) => {
                 if (type === 'text' && val.trim()) {
-                    // 1. 显示用户发送的消息
+                    // 1. 显示用户发送的消息 (with avatar)
                     appendMsg({
                         type: 'text',
                         content: { text: val },
                         position: 'right',
+                        user: { avatar: userAvatar } // Add user avatar
                     });
 
                     // 2. Set typing state to true
@@ -89,24 +96,27 @@
                                 type: 'text',
                                 content: { text: `错误: ${errorData.error || response.statusText}` },
                                 position: 'left',
+                                user: { avatar: assistantAvatar, name: '错误提示' } // Add assistant avatar for errors too
                             });
                             return; // 提前退出
                         }
 
                         const data = await response.json();
                         
-                        // 4. 显示后端返回的响应
+                        // 4. 显示后端返回的响应 (with avatar)
                         if (data.response) {
                             appendMsg({
                                 type: 'text',
                                 content: { text: data.response }, // 使用 API 返回的内容
                                 position: 'left',
+                                user: { avatar: assistantAvatar, name: data.handling_agent || '助手' } // Add assistant avatar and name
                             });
                         } else if (data.error) {
                              appendMsg({
                                 type: 'text',
                                 content: { text: `后端错误: ${data.error}` },
                                 position: 'left',
+                                user: { avatar: assistantAvatar, name: '错误提示' } // Add assistant avatar for errors too
                             });
                         }
 
@@ -117,6 +127,7 @@
                             type: 'text',
                             content: { text: `网络错误: ${error.message}` },
                             position: 'left',
+                            user: { avatar: assistantAvatar, name: '错误提示' } // Add assistant avatar for network errors
                         });
                     } finally {
                        // 5. Set typing state to false when API call finishes
@@ -132,7 +143,7 @@
                     case 'text':
                         return <Bubble content={content.text} />;
                     case 'typing': // Render the Typing component for this type
-                        return <Bubble><Typing /></Bubble>; // Wrap Typing in Bubble for layout
+                        return <Typing />;
                     default:
                         return null;
                 }
@@ -141,7 +152,8 @@
             // Prepare messages to display, including the typing indicator if needed
             const messagesToDisplay = [
                 ...messages,
-                ...(isTyping ? [{ _id: 'typing', type: 'typing', content: {} }] : []) // Add typing message if isTyping is true
+                // Add typing indicator without user/avatar
+                ...(isTyping ? [{ _id: 'typing', type: 'typing', content: {} }] : []) 
             ];
 
             return (

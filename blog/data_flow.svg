@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="400" viewBox="0 0 700 400" font-family="sans-serif" font-size="14">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+
+  <style>
+    .box { fill: #eef; stroke: #aac; stroke-width: 1.5; rx: 5; ry: 5; }
+    .label { text-anchor: middle; fill: #000; }
+    .arrow { stroke: #333; stroke-width: 1.5; marker-end: url(#arrowhead); }
+    .route-box { fill: #ffe; stroke: #cca; stroke-width: 1; font-style: italic; font-size: 12px; }
+    .agent-box { fill: #efe; stroke: #aca; stroke-width: 1.5; rx: 5; ry: 5; }
+  </style>
+
+  <!-- Components -->
+  <rect x="20" y="170" width="100" height="60" class="box" />
+  <text x="70" y="205" class="label">用户输入</text>
+
+  <rect x="160" y="170" width="120" height="60" class="box" />
+  <text x="220" y="195" class="label">前端</text>
+  <text x="220" y="215" class="label">(ChatUI)</text>
+
+  <rect x="320" y="170" width="120" height="60" class="box" />
+  <text x="380" y="195" class="label">后端 API</text>
+  <text x="380" y="215" class="label">(FastAPI /ask)</text>
+
+  <rect x="480" y="170" width="120" height="60" class="box" />
+  <text x="540" y="195" class="label">Agno Team</text>
+  <text x="540" y="215" class="label">(lemonhall_)</text>
+  <text x="540" y="230" class="label">_assistant</text> <!-- Split for fit -->
+
+
+  <rect x="490" y="260" width="100" height="40" class="route-box" />
+  <text x="540" y="285" class="label route-box">路由机制</text>
+
+
+  <rect x="440" y="330" width="100" height="50" class="agent-box" />
+  <text x="490" y="350" class="label">个人信息</text>
+  <text x="490" y="365" class="label">Agent</text>
+  
+  <rect x="560" y="330" width="100" height="50" class="agent-box" />
+  <text x="610" y="350" class="label">项目管理</text>
+  <text x="610" y="365" class="label">Agent</text>
+  
+  <text x="680" y="357" font-size="18">...</text> <!-- Indicate more agents -->
+
+
+  <!-- Arrows -->
+  <line x1="120" y1="200" x2="160" y2="200" class="arrow" /> <!-- 用户 -> 前端 -->
+  <line x1="280" y1="200" x2="320" y2="200" class="arrow" /> <!-- 前端 -> 后端 -->
+  <line x1="440" y1="200" x2="480" y2="200" class="arrow" /> <!-- 后端 -> Team -->
+
+  <line x1="540" y1="230" x2="540" y2="260" class="arrow" /> <!-- Team -> 路由机制 -->
+  
+  <!-- Routing to Agents -->
+  <path d="M 540 300 Q 540 315 490 330" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="5,3" />
+  <path d="M 540 300 Q 560 315 610 330" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="5,3" />
+
+</svg> 
