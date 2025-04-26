@@ -3,10 +3,14 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles # Import StaticFiles
+from fastapi.responses import FileResponse # Import FileResponse
 
 # --- Add project root to sys.path (same logic as in teams_consoles.py) ---
 # This ensures that 'src.' imports work correctly when running with uvicorn
 project_root = Path(__file__).resolve().parent.parent
+frontend_dir = project_root / "frontend" # Define path to frontend directory
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 # --- End of dynamic path addition ---
@@ -28,11 +32,35 @@ class QueryRequest(BaseModel):
 
 app = FastAPI(
     title="柠檬叔个人助手 API",
-    description="通过 HTTP API 与柠檬叔的 agno Agent 团队交互。",
+    description="通过 HTTP API 与柠檬叔的 agno Agent 团队交互，并提供前端界面。", # Updated description
     version="0.1.0",
 )
 
-# Change GET to POST and accept request body
+# --- CORS Configuration --- 
+# Allow requests from typical frontend development ports and file origins
+origins = [
+    "http://localhost",
+    "http://localhost:8000", # Add the app's own origin
+    "http://localhost:3000", # Common React dev port
+    "http://localhost:5173", # Common Vite dev port
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000", # Add the app's own origin
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    # "null", # Remove null origin as we are serving the file now
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # Allows specified origins
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"], # Allows all headers
+)
+# --- End CORS Configuration ---
+
+# --- API Endpoints --- 
+
 @app.post("/ask", tags=["Agent Interaction"])
 async def ask_agent(request: QueryRequest): # Accept QueryRequest model as body
     """
@@ -90,13 +118,32 @@ async def ask_agent(request: QueryRequest): # Accept QueryRequest model as body
             "response": response_content # Include any partial content if available before error
         }
 
-# Add a simple root endpoint for health check or info
-@app.get("/", tags=["General"])
-async def read_root():
-    return {"message": "柠檬叔个人助手 API 正在运行。访问 /docs 查看 API 文档。"}
+# Renamed the old root endpoint
+@app.get("/api-status", tags=["General"])
+async def api_status():
+    return {"message": "柠檬叔个人助手 API 正在运行。"}
+
+# --- Frontend Serving --- 
+
+# Serve the index.html at the root path
+@app.get("/", include_in_schema=False) # Exclude from OpenAPI docs
+async def read_index():
+    index_path = frontend_dir / "index.html"
+    if not index_path.is_file():
+        return {"error": "Frontend index.html not found!"}, 404
+    return FileResponse(str(index_path))
+
+# Mount the rest of the frontend directory for static files (CSS, JS, images etc. if added later)
+# This needs to be mounted AFTER the specific root route for index.html
+# The path="/" means files in frontend/ will be accessible directly, e.g., /styles.css if frontend/styles.css exists
+app.mount("/", StaticFiles(directory=frontend_dir), name="frontend")
+
+# --- Main execution block --- 
 
 if __name__ == "__main__":
-    print("Starting Uvicorn server...")
+    print(f"API server starting...")
+    print(f"Frontend directory set to: {frontend_dir}")
+    print(f"Attempting to serve index.html from: {frontend_dir / 'index.html'}")
     # Run the FastAPI app using Uvicorn
     # Use reload=True for development to automatically reload on code changes
     uvicorn.run("src.api_server:app", host="0.0.0.0", port=8000, reload=True) 

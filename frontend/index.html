@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 设置 viewport 以支持安全区适配 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+    <title>柠檬叔助手</title>
+    <!-- 引入 ChatUI 核心样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/@chatui/core/dist/index.css" />
+    <style>
+        html, body, #root {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 防止页面滚动 */
+        }
+        /* 可选：为 ChatUI 设置一些默认安全区边距，如果 meta 标签和 CSS 变量无效 */
+        body {
+             padding-top: constant(safe-area-inset-top); /* iOS < 11.2 */
+             padding-top: env(safe-area-inset-top); /* iOS >= 11.2 */
+             padding-bottom: constant(safe-area-inset-bottom);
+             padding-bottom: env(safe-area-inset-bottom);
+         }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- React 和 ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel 用于在浏览器中转译 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- ChatUI 核心库 -->
+    <script src="https://unpkg.com/@chatui/core/dist/index.js"></script>
+
+    <!-- 你的 React 应用代码 (使用 Babel 转译) -->
+    <script type="text/babel">
+        // --- DEBUG: Check if ChatUI global exists ---
+        console.log("window.ChatUI object:", window.ChatUI);
+        // --- END DEBUG ---
+
+        const { useState, useCallback } = React;
+        // Correctly access default and named exports from the ChatUI global
+        const Chat = ChatUI.default; 
+        const { Bubble, useMessages } = ChatUI;
+
+        const App = () => {
+            // Check if Chat component is defined now
+            if (!Chat) {
+                console.error("Chat component is still undefined. Check ChatUI library loading.");
+                return <div>Error: Chat component not loaded.</div>;
+            }
+            // Check if useMessages hook is defined
+             if (!useMessages) {
+                 console.error("useMessages hook is undefined. Check ChatUI library loading.");
+                 return <div>Error: useMessages hook not loaded.</div>;
+             }
+
+            // --- DEBUG: Log the result of useMessages and the destructured setTyping --- 
+            // const messageManager = useMessages([]); // Remove debug log
+            // console.log("Result from useMessages():", messageManager);
+            // const { messages, appendMsg, setTyping } = messageManager;
+            // console.log("Destructured setTyping:", setTyping);
+            // --- END DEBUG --- 
+
+            const { messages, appendMsg } = useMessages([]); // Only destructure what's available
+
+            const apiEndpoint = 'http://localhost:8000/ask'; // 后端 API 地址
+
+            // 发送消息的处理函数
+            const handleSend = useCallback(async (type, val) => {
+                if (type === 'text' && val.trim()) {
+                    // 1. 显示用户发送的消息
+                    appendMsg({
+                        type: 'text',
+                        content: { text: val },
+                        position: 'right',
+                    });
+
+                    // 2. 移除 setTyping(true) 调用
+                    // setTyping(true);
+
+                    // 3. 调用后端 API
+                    try {
+                        const response = await fetch(apiEndpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ query: val.trim() }),
+                        });
+
+                        if (!response.ok) {
+                            // 处理 API 请求错误
+                            const errorData = await response.json().catch(() => ({ response: 'API 请求失败' }));
+                            appendMsg({
+                                type: 'text',
+                                content: { text: `错误: ${errorData.error || response.statusText}` },
+                                position: 'left',
+                            });
+                            return; // 提前退出
+                        }
+
+                        const data = await response.json();
+                        
+                        // 4. 显示后端返回的响应
+                        if (data.response) {
+                            appendMsg({
+                                type: 'text',
+                                content: { text: data.response }, // 使用 API 返回的内容
+                                position: 'left',
+                                // 可选：显示处理的 Agent 名称
+                                // user: { avatar: '🤖', name: data.handling_agent || '助手' } 
+                            });
+                        } else if (data.error) {
+                             appendMsg({
+                                type: 'text',
+                                content: { text: `后端错误: ${data.error}` },
+                                position: 'left',
+                            });
+                        }
+
+                    } catch (error) {
+                        // 处理网络错误等
+                        console.error("API call failed:", error);
+                        appendMsg({
+                            type: 'text',
+                            content: { text: `网络错误: ${error.message}` },
+                            position: 'left',
+                        });
+                    } finally {
+                       // 5. 移除 setTyping(false) 调用
+                       // setTyping(false); 
+                    }
+                }
+            }, [appendMsg]); // Remove setTyping from dependency array
+
+            // 渲染消息内容
+            const renderMessageContent = useCallback((msg) => {
+                const { type, content } = msg;
+                switch (type) {
+                    case 'text':
+                        return <Bubble content={content.text} />;
+                    default:
+                        return null;
+                }
+            }, []);
+
+            return (
+                <Chat
+                    navbar={{ title: '柠檬叔的小助手' }}
+                    messages={messages}
+                    renderMessageContent={renderMessageContent}
+                    onSend={handleSend}
+                    placeholder="请输入你的问题..."
+                />
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html> 
