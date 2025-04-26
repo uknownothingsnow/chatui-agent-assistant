@@ -43,28 +43,19 @@
         const { useState, useCallback } = React;
         // Correctly access default and named exports from the ChatUI global
         const Chat = ChatUI.default; 
-        const { Bubble, useMessages } = ChatUI;
+        // Destructure Typing component as well
+        const { Bubble, useMessages, Typing } = ChatUI;
 
         const App = () => {
-            // Check if Chat component is defined now
-            if (!Chat) {
-                console.error("Chat component is still undefined. Check ChatUI library loading.");
-                return <div>Error: Chat component not loaded.</div>;
+            // Check if components/hooks are defined
+            if (!Chat || !useMessages || !Typing || !Bubble) {
+                console.error("ChatUI components or hooks are undefined.", { Chat, useMessages, Typing, Bubble });
+                return <div>Error: ChatUI components not loaded correctly.</div>;
             }
-            // Check if useMessages hook is defined
-             if (!useMessages) {
-                 console.error("useMessages hook is undefined. Check ChatUI library loading.");
-                 return <div>Error: useMessages hook not loaded.</div>;
-             }
 
-            // --- DEBUG: Log the result of useMessages and the destructured setTyping --- 
-            // const messageManager = useMessages([]); // Remove debug log
-            // console.log("Result from useMessages():", messageManager);
-            // const { messages, appendMsg, setTyping } = messageManager;
-            // console.log("Destructured setTyping:", setTyping);
-            // --- END DEBUG --- 
-
-            const { messages, appendMsg } = useMessages([]); // Only destructure what's available
+            const { messages, appendMsg } = useMessages([]);
+            // Add state to track typing indicator visibility
+            const [isTyping, setIsTyping] = useState(false);
 
             const apiEndpoint = 'http://localhost:8000/ask'; // 后端 API 地址
 
@@ -78,8 +69,8 @@
                         position: 'right',
                     });
 
-                    // 2. 移除 setTyping(true) 调用
-                    // setTyping(true);
+                    // 2. Set typing state to true
+                    setIsTyping(true);
 
                     // 3. 调用后端 API
                     try {
@@ -110,8 +101,6 @@
                                 type: 'text',
                                 content: { text: data.response }, // 使用 API 返回的内容
                                 position: 'left',
-                                // 可选：显示处理的 Agent 名称
-                                // user: { avatar: '🤖', name: data.handling_agent || '助手' } 
                             });
                         } else if (data.error) {
                              appendMsg({
@@ -130,27 +119,35 @@
                             position: 'left',
                         });
                     } finally {
-                       // 5. 移除 setTyping(false) 调用
-                       // setTyping(false); 
+                       // 5. Set typing state to false when API call finishes
+                       setIsTyping(false); 
                     }
                 }
-            }, [appendMsg]); // Remove setTyping from dependency array
+            }, [appendMsg]); // Removed setTyping, only appendMsg needed now
 
-            // 渲染消息内容
+            // 渲染消息内容 - Add case for 'typing' type
             const renderMessageContent = useCallback((msg) => {
                 const { type, content } = msg;
                 switch (type) {
                     case 'text':
                         return <Bubble content={content.text} />;
+                    case 'typing': // Render the Typing component for this type
+                        return <Bubble><Typing /></Bubble>; // Wrap Typing in Bubble for layout
                     default:
                         return null;
                 }
             }, []);
+            
+            // Prepare messages to display, including the typing indicator if needed
+            const messagesToDisplay = [
+                ...messages,
+                ...(isTyping ? [{ _id: 'typing', type: 'typing', content: {} }] : []) // Add typing message if isTyping is true
+            ];
 
             return (
                 <Chat
                     navbar={{ title: '柠檬叔的小助手' }}
-                    messages={messages}
+                    messages={messagesToDisplay} // Use the potentially modified list
                     renderMessageContent={renderMessageContent}
                     onSend={handleSend}
                     placeholder="请输入你的问题..."
