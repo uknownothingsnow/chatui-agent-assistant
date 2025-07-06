@@ -1,5 +1,6 @@
 from agno.models.deepseek import DeepSeek
 from agno.models.base import Model
+from src.config import V3_MODEL_ID, R1_MODEL_ID, DEFAULT_VOLCENGINE_BASE_URL
 
 #litellm初始化火山引擎的方法
 #V3的模型
@@ -37,9 +38,9 @@ from agno.models.base import Model
 class VolcEngineModelProvider:
     """Manages the initialization of DeepSeek models via VolcEngine."""
 
-    V3 = "deepseek-v3-250324"
-    R1 = "deepseek-r1-250528"
-    DEFAULT_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/"
+    V3 = V3_MODEL_ID
+    R1 = R1_MODEL_ID
+    DEFAULT_BASE_URL = DEFAULT_VOLCENGINE_BASE_URL
 
     def __init__(self, model_id: str = V3, base_url: str = DEFAULT_BASE_URL):
         """
