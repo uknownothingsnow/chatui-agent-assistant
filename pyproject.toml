@@ -1,7 +1,20 @@
 [project]
 name = "chatui-agent-assistant"
 version = "0.1.0"
-description = "Add your description here"
+description = "柠檬叔个人助手 - 基于agno框架的个性化AI助手"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "agno",
+    "fastapi",
+    "uvicorn[standard]",
+    "openai",
+    "httpx",
+    "python-multipart",
+    "aiofiles",
+    "sqlalchemy"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
