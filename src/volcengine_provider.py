@@ -37,8 +37,8 @@ from agno.models.base import Model
 class VolcEngineModelProvider:
     """Manages the initialization of DeepSeek models via VolcEngine."""
 
-    V3 = "ep-20250204220334-l2q5g"
-    R1 = "ep-20250204215316-p8rqb"
+    V3 = "deepseek-v3-250324"
+    R1 = "deepseek-r1-250528"
     DEFAULT_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/"
 
     def __init__(self, model_id: str = V3, base_url: str = DEFAULT_BASE_URL):
