@@ -12,7 +12,27 @@ dependencies = [
     "httpx",
     "python-multipart",
     "aiofiles",
-    "sqlalchemy"
+    "sqlalchemy",
+    "yfinance",
+    "beautifulsoup4",
+    "pandas",
+    "numpy",
+    "requests",
+    "peewee",
+    "multitasking",
+    "frozendict",
+    "curl-cffi",
+    "soupsieve",
+    "pytz",
+    "python-dateutil",
+    "protobuf",
+    "cffi",
+    "pycparser",
+    "tzdata",
+    "platformdirs",
+    "six",
+    "lancedb",
+    "huggingface-hub"
 ]
 
 [build-system]

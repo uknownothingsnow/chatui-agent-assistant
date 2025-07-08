@@ -1,5 +1,21 @@
 import sys
+import os
 from pathlib import Path
+from agno.agent import Agent, AgentKnowledge
+from agno.tools.reasoning import ReasoningTools
+from agno.tools.yfinance import YFinanceTools
+from agno.knowledge.url import UrlKnowledge
+from agno.knowledge.pdf_url import PDFUrlKnowledgeBase
+from agno.storage.sqlite import SqliteStorage
+from agno.vectordb.mongodb import MongoDb
+from agno.vectordb.search import SearchType
+from agno.embedder.huggingface import HuggingfaceCustomEmbedder
+from huggingface_hub import whoami
+from agno.embedder.ollama import OllamaEmbedder
+from pymongo import MongoClient
+from agno.vectordb.mongodb import MongoDb
+from sentence_transformers import SentenceTransformer
+
 
 # --- Dynamically add project root to sys.path ---
 # This allows running the script directly (python src/...) 
@@ -109,18 +125,80 @@ ai_terms_agent = Agent(
     ]
 )
 
+reasoning_agent = Agent(
+    model=ds_model,
+    tools=[
+        ReasoningTools(add_instructions=True),
+        YFinanceTools(stock_price=True, analyst_recommendations=True, company_info=True, company_news=True),
+    ],
+    instructions="Use tables to display data.",
+    markdown=True,
+)
+
+# Load Agno documentation in a knowledge base
+# You can also use `https://docs.agno.com/llms-full.txt` for the full documentation
+
+
+knowledge = UrlKnowledge(
+    urls=["https://docs.agno.com/introduction/agents.md"], # "https://docs.agno.com/llms-full.txt"],
+    vector_db=MongoDb(
+        db_url="mongodb://localhost:27017/?directConnection=true&serverSelectionTimeoutMS=2000",
+        collection_name="agno_docs",
+        search_type=SearchType.hybrid,
+        search_index_name="agno_docs",
+        embedder=OllamaEmbedder(),
+    ),
+)
+
+knowledge.load(recreate=True)
+
+# knowledge_base = PDFUrlKnowledgeBase(
+#     urls=["https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"],
+#     vector_db=MongoDb(
+#         collection_name="recipes",
+#         db_url="mongodb://localhost:27017/?directConnection=true&serverSelectionTimeoutMS=2000",
+#         embedder=OllamaEmbedder(),
+#     ),
+# )
+# knowledge_base.load(recreate=True)
+
+# Store agent sessions in a SQLite database
+storage = SqliteStorage(table_name="agent_sessions", db_file="tmp/agent.db")
+
+knowledge_agent = Agent(
+    name="Agno Assist",
+    model=ds_model,
+    instructions=[
+        "Search your knowledge before answering the question.",
+        "Only include the output in your response. No other text.",
+    ],
+    knowledge=knowledge,
+    search_knowledge=True,
+    storage=storage,
+    add_datetime_to_instructions=True,
+    # Add the chat history to the messages
+    add_history_to_messages=True,
+    # Number of history runs
+    num_history_runs=3,
+    show_tool_calls=True,
+    markdown=True,
+)
+
 # 创建团队
 lemonhall_assistant = Team(
     name="柠檬叔个人助手团队",
     mode="route",  # 使用路由模式，根据问题内容分发给合适的Agent
     model=ds_model,
     members=[
+        knowledge_agent,
         personal_info_agent, 
         tech_env_agent, 
         dev_tools_agent, 
         project_agent, 
         server_agent, 
-        ai_terms_agent
+        ai_terms_agent,
+        reasoning_agent,
+        
     ],
     show_tool_calls=True,
     markdown=True,
@@ -142,6 +220,14 @@ lemonhall_assistant = Team(
 )
 
 if __name__ == "__main__":
+    print(whoami())
+    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    print(model.get_sentence_embedding_dimension())
+    # Drop the collection
+    # client = MongoClient("mongodb://localhost:27017")
+    # db = client["agno"]
+    # db["agno_docs"].drop()
+
     print("柠檬叔个人助手已启动，请输入您的问题（输入'exit'退出）")
     while True:
         user_input = input("\n您的问题: ")
@@ -152,3 +238,5 @@ if __name__ == "__main__":
         for chunk in lemonhall_assistant.run(user_input, stream=True):
             print(chunk.content, end="", flush=True)
         print("\n")
+
+    
