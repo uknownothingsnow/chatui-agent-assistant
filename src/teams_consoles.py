@@ -15,6 +15,7 @@ from agno.embedder.ollama import OllamaEmbedder
 from pymongo import MongoClient
 from agno.vectordb.mongodb import MongoDb
 from sentence_transformers import SentenceTransformer
+from rich.pretty import pprint
 
 
 # --- Dynamically add project root to sys.path ---
@@ -132,6 +133,7 @@ reasoning_agent = Agent(
         YFinanceTools(stock_price=True, analyst_recommendations=True, company_info=True, company_news=True),
     ],
     instructions="Use tables to display data.",
+    show_tool_calls=True,
     markdown=True,
 )
 
@@ -148,6 +150,7 @@ knowledge = UrlKnowledge(
         search_index_name="agno_docs",
         embedder=OllamaEmbedder(),
     ),
+    show_tool_calls=True,
 )
 
 knowledge.load(recreate=True)
@@ -239,4 +242,19 @@ if __name__ == "__main__":
             print(chunk.content, end="", flush=True)
         print("\n")
 
+        # Print metrics per message
+        if lemonhall_assistant.run_response.messages:
+            for message in lemonhall_assistant.run_response.messages:
+                if message.role == "assistant":
+                    if message.content:
+                        print(f"Message: {message.content}")
+                    elif message.tool_calls:
+                        print(f"Tool calls: {message.tool_calls}")
+                    print("---" * 5, "Metrics", "---" * 5)
+                    pprint(message.metrics)
+                    print("---" * 20)
+
+        # Print the aggregated metrics for the whole run
+        print("---" * 5, "Collected Metrics", "---" * 5)
+        pprint(lemonhall_assistant.run_response.metrics)
     
